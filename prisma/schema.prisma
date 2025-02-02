@@ -1,0 +1,404 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DB_URL")
+}
+
+model USER_TYPE_MASTER {
+  ID                      Int                       @id @default(autoincrement())
+  NAME                    String
+  createdOn               DateTime                  @default(now())
+  updatedOn               DateTime                  @default(now()) @updatedAt
+  USER_ROLE_ASSIGNMENT    USER_ROLE_ASSIGNMENT[]
+  USER_FEATURE_PERMISSION USER_FEATURE_PERMISSION[]
+  User                    User[]
+}
+
+model User {
+  user_id          Int       @id @default(autoincrement())
+  user_name        String?
+  profile_img      String?
+  password         String?
+  user_email       String?   @unique
+  role_id          Int?
+  status           Int?
+  twofa_auth_code  String?   @unique
+  is_twofa_enabled Boolean?
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @updatedAt
+  last_login       DateTime?
+  org_id           Int?
+  reset_password_token String?  // Field for storing the reset token
+  reset_password_expiry DateTime? // Field for storing token expiry
+
+  role         USER_TYPE_MASTER? @relation(fields: [role_id], references: [ID])
+  organization ORGANIZATION?     @relation(fields: [org_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  expenses     Expense[]         @relation("ExpenseToUser")
+
+  createdTreatments          Treatment[]           @relation("CreatedByUser")
+  updatedTreatments          Treatment[]           @relation("UpdatedByUser")
+  createdStaffMembers        StaffMember[]         @relation("CreatedByUser")
+  updatedStaffMembers        StaffMember[]         @relation("UpdatedByUser")
+  createdCustomers           Customer[]            @relation("CreatedByUser")
+  updatedCustomers           Customer[]            @relation("UpdatedByUser")
+  createdCaseHistories       CaseHistory[]         @relation("CreatedByUser")
+  updatedCaseHistories       CaseHistory[]         @relation("UpdatedByUser")
+  createdMedicines           Medicine[]            @relation("CreatedByUser")
+  updatedMedicines           Medicine[]            @relation("UpdatedByUser")
+  createdMedicalConditions   MedicalCondition[]    @relation("CreatedByUser")
+  updatedMedicalConditions   MedicalCondition[]    @relation("UpdatedByUser")
+  createdCustomerAppointment CustomerAppointment[] @relation("CreatedByUser")
+  updatedCustomerAppointment CustomerAppointment[] @relation("UpdatedByUser")
+  createdInvoice             Invoice[]             @relation("CreatedByUser")
+  updatedInvoice             Invoice[]             @relation("UpdatedByUser")
+  createdErrorLogs           ErrorLog[]            @relation("CreatedByUser")
+}
+
+model Expense {
+  expense_id   Int      @id @default(autoincrement())
+  user         User     @relation("ExpenseToUser", fields: [user_id], references: [user_id])
+  user_id      Int
+  expense_date DateTime
+  category     String
+  amount       Decimal  @db.Decimal(10, 2)
+  description  String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
+
+model ExpenseCategory {
+  category_id Int    @id @default(autoincrement())
+  name        String @unique
+}
+
+model Treatment {
+  treatment_id    Int       @id @default(autoincrement())
+  name            String?
+  description     String?
+  cost            Decimal?
+  duration        String?
+  type            String?
+  created_user_id Int
+  updated_user_id Int
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @updatedAt
+
+  creator         User            @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater         User            @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+  case_treatments CaseTreatment[]
+}
+
+model StaffMember {
+  staff_member_id  Int       @id @default(autoincrement())
+  fullname         String?
+  position         String?
+  qualification    String?
+  specialization   String?
+  consultation_fee Decimal?
+  email            String?   @unique
+  mobile           String?
+  alt_mobile       String?
+  DOB              DateTime?
+  created_user_id  Int
+  updated_user_id  Int
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @updatedAt
+
+  creator        User                  @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater        User                  @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+  case_histories CaseHistory[]
+  appointments   CustomerAppointment[]
+}
+
+model Customer {
+  customer_id      Int       @id @default(autoincrement())
+  fullname         String?
+  email            String?   @unique
+  mobile           String?
+  alt_mobile       String?
+  address          String?
+  password         String?
+  DOB              DateTime?
+  insurance_policy String?
+  created_user_id  Int
+  updated_user_id  Int
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @updatedAt
+  org_id           Int?
+
+  // Relations
+  organization   ORGANIZATION?         @relation(fields: [org_id], references: [id])
+  creator        User                  @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater        User                  @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+  invoices       Invoice[]
+  case_histories CaseHistory[]
+  appointments   CustomerAppointment[]
+}
+
+model Invoice {
+  invoice_id          Int       @id @default(autoincrement())
+  invoiceNumber       String    @unique
+  customer_id         Int?
+  case_id             Int?
+  discount            Decimal   @default(0.0)
+  totalDiscountAmount Decimal   @default(0.0)
+  tax                 Decimal   @default(0.0)
+  totaltaxAmount      Decimal   @default(0.0)
+  totalAmount         Decimal   @default(0.0)
+  amountPaid          Decimal   @default(0.0)
+  pendingAmount       Decimal   @default(0.0)
+  paymentMode         String // String field instead of enum
+  issueDate           DateTime  @default(now())
+  dueDate             DateTime?
+  status              String    @default("Unpaid")
+  created_user_id     Int
+  updated_user_id     Int
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  // Relations
+  customer    Customer?    @relation(fields: [customer_id], references: [customer_id])
+  caseHistory CaseHistory? @relation(fields: [case_id], references: [case_id])
+  creator     User         @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater     User         @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+
+  @@index([status])
+}
+
+model Medicine {
+  medicine_id     Int       @id @default(autoincrement())
+  name            String?
+  description     String?
+  created_user_id Int
+  updated_user_id Int
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @updatedAt
+
+  creator        User           @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater        User           @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+  case_medicines CaseMedicine[]
+}
+
+model MedicalCondition {
+  condition_id    Int       @id @default(autoincrement())
+  name            String?
+  description     String?
+  type            String?
+  created_user_id Int
+  updated_user_id Int
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @updatedAt
+
+  creator         User                      @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater         User                      @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+  case_conditions CaseCondition[]
+  symptoms        MedicalConditionSymptom[]
+}
+
+model CaseHistory {
+  case_id         Int       @id @default(autoincrement())
+  customer_id     Int?
+  staff_member_id Int?
+  case_date       DateTime?
+  notes           String?
+  dental_history  String?
+  medical_history String?
+  created_user_id Int
+  updated_user_id Int
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @updatedAt
+
+  customer        Customer?       @relation(fields: [customer_id], references: [customer_id])
+  staff_member    StaffMember?    @relation(fields: [staff_member_id], references: [staff_member_id])
+  creator         User            @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater         User            @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+  case_treatments CaseTreatment[]
+  case_medicines  CaseMedicine[]
+  case_conditions CaseCondition[]
+  case_documents  CaseDocument[]
+  invoices        Invoice[]
+}
+
+model CaseTreatment {
+  case_id      Int
+  treatment_id Int
+  created_at   DateTime? @default(now())
+  updated_at   DateTime? @updatedAt
+
+  case_history CaseHistory @relation(fields: [case_id], references: [case_id])
+  treatment    Treatment   @relation(fields: [treatment_id], references: [treatment_id])
+
+  @@id([case_id, treatment_id])
+}
+
+model CaseMedicine {
+  case_id     Int
+  medicine_id Int
+  created_at  DateTime? @default(now())
+  updated_at  DateTime? @updatedAt
+
+  case_history CaseHistory @relation(fields: [case_id], references: [case_id])
+  medicine     Medicine    @relation(fields: [medicine_id], references: [medicine_id])
+
+  @@id([case_id, medicine_id])
+}
+
+model CaseCondition {
+  case_id      Int
+  condition_id Int
+  created_at   DateTime? @default(now())
+  updated_at   DateTime? @updatedAt
+
+  case_history      CaseHistory      @relation(fields: [case_id], references: [case_id])
+  medical_condition MedicalCondition @relation(fields: [condition_id], references: [condition_id])
+
+  @@id([case_id, condition_id])
+}
+
+model MedicalConditionSymptom {
+  condition_id Int
+  symptom      String
+
+  medical_condition MedicalCondition @relation(fields: [condition_id], references: [condition_id])
+
+  @@id([condition_id, symptom])
+}
+
+model CustomerAppointment {
+  appointment_id   Int       @id @default(autoincrement())
+  customer_id      Int?
+  staff_member_id  Int?
+  appointment_date DateTime?
+  duration         Int?
+  reason           String?
+  status           String?
+  created_user_id  Int
+  updated_user_id  Int
+  created_at       DateTime? @default(now())
+  updated_at       DateTime? @updatedAt
+
+  customer     Customer?    @relation(fields: [customer_id], references: [customer_id])
+  staff_member StaffMember? @relation(fields: [staff_member_id], references: [staff_member_id])
+  creator      User?        @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+  updater      User?        @relation("UpdatedByUser", fields: [updated_user_id], references: [user_id])
+}
+
+model CaseDocument {
+  id             Int    @id @default(autoincrement())
+  case_id        Int?
+  documentType   String
+  documentName   String
+  documentFolder String
+  url            String
+
+  case_history CaseHistory? @relation(fields: [case_id], references: [case_id])
+}
+
+model ErrorLog {
+  id              Int       @id @default(autoincrement())
+  req_id          Int?
+  pagename        String?
+  function_name   String?
+  error_message   String?
+  error_body      Json?
+  created_user_id Int
+  created_at      DateTime? @default(now())
+  updated_at      DateTime? @default(now()) @updatedAt
+
+  creator User? @relation("CreatedByUser", fields: [created_user_id], references: [user_id])
+}
+
+model PERMISSION_MASTER {
+  ID                      Int                       @id @default(autoincrement())
+  Name                    String
+  Code                    String                    @unique
+  createdOn               DateTime                  @default(now())
+  updatedOn               DateTime                  @default(now()) @updatedAt
+  USER_FEATURE_PERMISSION USER_FEATURE_PERMISSION[]
+}
+
+model FEATURE_MASTER {
+  ID                      Int                       @id @default(autoincrement())
+  featureName             String
+  backendApi              Boolean                   @default(false)
+  frontendModule          Boolean                   @default(false)
+  createdOn               DateTime                  @default(now())
+  updatedOn               DateTime                  @default(now()) @updatedAt
+  USER_FEATURE_PERMISSION USER_FEATURE_PERMISSION[]
+}
+
+model USER_FEATURE_PERMISSION {
+  ID            Int      @id @default(autoincrement())
+  USER_TYPE_ID  Int
+  FEATURE_ID    Int
+  PERMISSION_ID Int
+  createdOn     DateTime @default(now())
+  updatedOn     DateTime @default(now()) @updatedAt
+
+  USER_TYPE_MASTER  USER_TYPE_MASTER  @relation(fields: [USER_TYPE_ID], references: [ID])
+  FEATURE_MASTER    FEATURE_MASTER    @relation(fields: [FEATURE_ID], references: [ID])
+  PERMISSION_MASTER PERMISSION_MASTER @relation(fields: [PERMISSION_ID], references: [ID])
+}
+
+model USER_ROLE_ASSIGNMENT {
+  ID           Int      @id @default(autoincrement())
+  USER_ID      Int
+  USER_TYPE_ID Int
+  createdOn    DateTime @default(now())
+  updatedOn    DateTime @default(now()) @updatedAt
+
+  USER_TYPE_MASTER USER_TYPE_MASTER @relation(fields: [USER_TYPE_ID], references: [ID])
+}
+
+model ORGANIZATION_DASHBOARD {
+  id                 Int   @id @default(autoincrement())
+  monthlyActiveUsers Int
+  monthlyRevenue     Float
+  monthlySales       Int
+  org_id             Int
+
+  organization ORGANIZATION @relation(fields: [org_id], references: [id])
+  createdOn    DateTime     @default(now())
+  updatedOn    DateTime     @default(now()) @updatedAt
+}
+
+model USER_DASHBOARD {
+  id                  Int           @id @default(autoincrement())
+  expense             Float
+  monthlyAppointments Int
+  createdOn           DateTime      @default(now())
+  updatedOn           DateTime      @default(now()) @updatedAt
+  ORGANIZATION        ORGANIZATION? @relation(fields: [oRGANIZATIONId], references: [id])
+  oRGANIZATIONId      Int?
+}
+
+model ORGANIZATION {
+  id             Int              @id @default(autoincrement())
+  name           String
+  address        String?
+  city           String?
+  state          String?
+  country        String?
+  postal_code    String?
+  createdOn      DateTime?        @default(now())
+  updatedOn      DateTime?        @default(now()) @updatedAt
+  User           User[]
+  Customer       Customer[]
+  adminDashboard USER_DASHBOARD[]
+
+  ORGANIZATION_DASHBOARD ORGANIZATION_DASHBOARD[]
+}
+
+model Reminder {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String
+  reminder_date DateTime
+  reminder_time String
+  status       String   @default("Pending")
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}

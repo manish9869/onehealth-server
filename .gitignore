@@ -1,0 +1,24 @@
+# Add all the files in the .gitignore file which you want to ignore for NestJS project
+node_modules
+dist
+.env
+.env.example
+.env.test
+.env.development
+.env.production
+.env.local
+
+migrations
+
+.idea
+.vscode
+*.log
+*.log.*
+*.log-*
+*.log/*
+
+
+package-lock.json
+yarn.lock
+yarn-error.log
+npm-debug.log
